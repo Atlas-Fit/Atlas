@@ -613,13 +613,26 @@ let clapEnabled = true;
           } else if(clapCount>=2){
             clearTimeout(clapTimer);
             clapCount=0;
-            clapEnabled = false; // desactivar hasta que termine
+            clapEnabled = false;
             const h = new Date().getHours();
             const saludo = h<12 ? 'Buenos días' : h<19 ? 'Buenas tardes' : 'Buenas noches';
-            const msg = `${saludo}, ${userName}. Sistema ATLAS en línea y listo para asistirle. ¿En qué puedo ayudarle?`;
+            const msg = `${saludo} ${userName}. ATLAS en línea. Escuchando.`;
             playBootSound();
-            setTimeout(()=>{ addMsg('assistant', msg); speak(msg); }, 300);
-            setTimeout(()=>{ clapEnabled = true; }, 8000); // reactivar después de 8s
+            setTimeout(()=>{
+              addMsg('assistant', msg);
+              // Hablar y al terminar activar mic automaticamente
+              speechSynthesis.cancel();
+              const utt = new SpeechSynthesisUtterance(msg.replace(/[,;]/g,' '));
+              utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
+              const voices = speechSynthesis.getVoices();
+              const maleNames=['jorge','andres','miguel','pablo','diego','carlos','juan','male'];
+              const v = voices.find(x=>maleNames.some(m=>x.name.toLowerCase().includes(m)))
+                || voices.find(x=>x.lang.startsWith('es')) || voices[0];
+              if(v) utt.voice=v;
+              utt.onstart=()=>{ setOrb('speak'); setStatus('SALUDANDO...','#00ff88'); startWave('#00ff88'); };
+              utt.onend=()=>{ setOrb('idle'); stopWave(); setTimeout(()=>{ startMic(); clapEnabled=true; },400); };
+              speechSynthesis.speak(utt);
+            }, 300);
           }
         }
         requestAnimationFrame(detect);
