@@ -306,6 +306,7 @@ function setOrb(state){
   buildSilPath(oc2);
 
   const CHAR_W = 11;
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&';
   let W, H, drops=[], rotAngle=0;
 
   function resize(){
@@ -321,24 +322,24 @@ function setOrb(state){
     return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
   }
 
-  function getSilInfo(px, py, rect, cosA){
-    if(!rect || Math.abs(cosA) < 0.04) return null;
-    const centerX = rect.left + rect.width/2;
-    const unrotX  = centerX + (px - centerX) / Math.abs(cosA);
-    const lx = (unrotX - rect.left) * (220/rect.width);
-    const ly = (py     - rect.top)  * (280/rect.height);
+  function getSilInfo(px, py, rect, sinA){
+    if(!rect) return null;
+    const lx = (px - rect.left) * (220/rect.width);
+    const ly = (py - rect.top)  * (280/rect.height);
     if(!oc2.isPointInPath(lx, ly)) return null;
-    // Posición normalizada desde el centro (0=centro, 1=borde)
-    const normX = (px - centerX) / (rect.width/2 * Math.abs(cosA));
-    const depth = Math.min(1, Math.abs(normX));
-    // Brillo estilo esfera: máximo en centro, cae hacia los bordes
-    const brightness = Math.cos(depth * Math.PI/2);
-    return brightness;
+    // Posicion normalizada X dentro de la silueta (-1 izq, +1 der)
+    const centerX = rect.left + rect.width/2;
+    const normX = (px - centerX) / (rect.width/2);
+    // Oscurece los bordes siempre (efecto esfera)
+    const edgeDark = Math.cos(normX * Math.PI/2);
+    // Luz giratoria: un lado iluminado, el otro en sombra
+    const rotLight = 0.5 + 0.5 * Math.cos((normX - sinA) * Math.PI);
+    return Math.max(0.15, edgeDark * 0.5 + rotLight * 0.5);
   }
 
   function draw(){
     rotAngle += 0.012;
-    const cosA = Math.cos(rotAngle);
+    const sinA = Math.sin(rotAngle);
 
     const wrap = document.getElementById('orb-wrap');
     const rect = wrap ? wrap.getBoundingClientRect() : null;
@@ -350,15 +351,13 @@ function setOrb(state){
 
     drops.forEach((y,i)=>{
       const x = i*CHAR_W;
-      const ch = Math.random()>.5?'1':'0';
-      const brightness = getSilInfo(x, y, rect, cosA);
+      const ch = CHARS[Math.floor(Math.random()*CHARS.length)];
+      const brightness = getSilInfo(x, y, rect, sinA);
 
       if(brightness !== null){
-        // Dentro: brillo 3D intenso — centro blanco casi puro, bordes definidos
-        const a = 0.55 + 0.9 * brightness;
+        const a = 0.4 + 0.65 * brightness;
         ctx.fillStyle=`rgba(${r},${g},${b},${Math.min(1,a)})`;
       } else {
-        // Fuera: bien visible
         ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.18+0.08})`;
       }
       ctx.fillText(ch, x, y);
