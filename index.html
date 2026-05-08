@@ -520,23 +520,26 @@ function speak(text){
     else clearInterval(keepAlive);
   }, 10000);
 
-  function next(){
-    if(i >= sentences.length){
-      clearInterval(keepAlive);
-      setOrb('idle'); setStatus('EN ESPERA'); stopWave();
-      setTimeout(()=>{ clapEnabled=true; }, 2000);
-      return;
+  // Cachear la voz una sola vez para toda la respuesta
+  function startSpeaking(){
+    const selectedVoice = getVoice();
+    function next(){
+      if(i >= sentences.length){
+        clearInterval(keepAlive);
+        setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+        setTimeout(()=>{ clapEnabled=true; }, 2000);
+        return;
+      }
+      const utt = new SpeechSynthesisUtterance(sentences[i++]);
+      utt.lang='es-ES'; utt.rate=1.05; utt.pitch=0.85;
+      if(selectedVoice) utt.voice=selectedVoice;
+      utt.onend = next;
+      utt.onerror = next;
+      speechSynthesis.speak(utt);
     }
-    const utt = new SpeechSynthesisUtterance(sentences[i++]);
-    utt.lang='es-ES'; utt.rate=1.05; utt.pitch=0.85;
-    const v = getVoice();
-    if(v) utt.voice=v;
-    utt.onend = next;
-    utt.onerror = next;
-    speechSynthesis.speak(utt);
+    next();
   }
-  // Esperar que las voces estén cargadas antes de hablar
-  onVoicesReady(next);
+  onVoicesReady(startSpeaking);
 }
 
 // ── SEND ──────────────────────────────────────────────────────────────────────
