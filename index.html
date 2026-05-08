@@ -459,7 +459,7 @@ function addMsg(role, content){
   if(role==='assistant'){
     div.innerHTML = `<div class="mlabel">ATLAS</div><span class="msg-content"></span>`;
     area.appendChild(div);
-    while(area.children.length > 4) area.removeChild(area.firstChild);
+    while(area.children.length > 8) area.removeChild(area.firstChild);
     // Efecto typewriter
     const span = div.querySelector('.msg-content');
     const sanitized = content.replace(/</g,'&lt;').replace(/\n/g,'<br>');
@@ -473,31 +473,52 @@ function addMsg(role, content){
   } else {
     div.textContent = content;
     area.appendChild(div);
-    while(area.children.length > 4) area.removeChild(area.firstChild);
+    while(area.children.length > 8) area.removeChild(area.firstChild);
   }
   area.scrollTop = area.scrollHeight;
 }
 
 // ── SPEAK ─────────────────────────────────────────────────────────────────────
-function speak(text){
-  speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim().substring(0,600);
-  const utt = new SpeechSynthesisUtterance(clean);
-  utt.lang = 'es-AR';
-  utt.rate = 1.1;
-  utt.pitch = 0.55; // voz grave masculina
+function getVoice(){
   const voices = speechSynthesis.getVoices();
-  // Buscar voz masculina argentina o española
   const maleNames = ['jorge','andres','miguel','pablo','diego','carlos','juan','male','hombre'];
-  const v = voices.find(x=>x.name===voiceName)
+  return voices.find(x=>x.name===voiceName)
     || voices.find(x=>x.lang==='es-AR')
     || voices.find(x=>maleNames.some(m=>x.name.toLowerCase().includes(m)))
     || voices.find(x=>x.lang.startsWith('es'))
     || voices[0];
-  if(v) utt.voice = v;
-  utt.onstart = ()=>{ setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false; };
-  utt.onend = ()=>{ setOrb('idle'); setStatus('EN ESPERA'); stopWave(); setTimeout(()=>{ clapEnabled=true; },2000); };
-  speechSynthesis.speak(utt);
+}
+
+function speak(text){
+  speechSynthesis.cancel();
+  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim();
+  // Dividir en oraciones para evitar el bug de Chrome que corta la voz
+  const sentences = clean.match(/[^.!?]{1,120}[.!?]*/g) || [clean];
+  let i = 0;
+  setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false;
+
+  // Workaround bug Chrome: keep-alive cada 10s
+  const keepAlive = setInterval(()=>{
+    if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); }
+    else clearInterval(keepAlive);
+  }, 10000);
+
+  function next(){
+    if(i >= sentences.length){
+      clearInterval(keepAlive);
+      setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+      setTimeout(()=>{ clapEnabled=true; }, 2000);
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(sentences[i++]);
+    utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
+    const v = getVoice();
+    if(v) utt.voice=v;
+    utt.onend = next;
+    utt.onerror = next; // si falla una oracion, continua con la siguiente
+    speechSynthesis.speak(utt);
+  }
+  next();
 }
 
 // ── SEND ──────────────────────────────────────────────────────────────────────
