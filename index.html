@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>ATLAS</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--c:#00e5ff;--g:#00ff88;--r:#ff4444;--a:#ffaa00;--bg:#020c12}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Courier New',monospace;color:var(--c);user-select:none}
+
+/* BG */
+#bg{position:fixed;inset:0;z-index:0}
+canvas#particles{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
+#grid{position:absolute;inset:0;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='61'%3E%3Cpolygon points='35,3 67,20 67,54 35,71 3,54 3,20' fill='none' stroke='%2300e5ff' stroke-width='.6'/%3E%3C/svg%3E")}
+#scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,.012) 2px,rgba(0,229,255,.012) 4px);pointer-events:none}
+.corner{position:fixed;width:70px;height:70px;z-index:1;pointer-events:none;border-color:rgba(0,229,255,.35);border-style:solid}
+.tl{top:0;left:0;border-width:1.5px 0 0 1.5px}.tr{top:0;right:0;border-width:1.5px 1.5px 0 0}
+.bl{bottom:0;left:0;border-width:0 0 1.5px 1.5px}.br{bottom:0;right:0;border-width:0 1.5px 1.5px 0}
+
+/* LAYOUT */
+#app{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:20px 16px 24px}
+
+/* HEADER */
+#header{width:100%;display:flex;justify-content:space-between;align-items:flex-start}
+#logo{letter-spacing:8px;font-size:clamp(18px,4vw,26px);font-weight:bold;text-shadow:0 0 20px var(--c)}
+#logo span{font-size:10px;opacity:.4;letter-spacing:2px;display:block;margin-top:2px}
+#sys-info{text-align:right;font-size:10px;opacity:.5;letter-spacing:1px;line-height:1.8}
+
+/* ORB */
+#orb-section{display:flex;flex-direction:column;align-items:center;gap:24px;flex:1;justify-content:center}
+#orb-wrap{position:relative;width:clamp(180px,35vw,260px);height:clamp(180px,35vw,260px)}
+.ring{position:absolute;border-radius:50%;border:1px solid var(--c)}
+.r1{inset:0;opacity:.2;animation:spin 8s linear infinite}
+.r2{inset:14%;border-style:dashed;opacity:.15;animation:spinR 12s linear infinite}
+.r3{inset:28%;opacity:.25;animation:spin 20s linear infinite}
+.r4{inset:40%;border-style:dotted;opacity:.12;animation:spinR 6s linear infinite}
+#orb-glow{position:absolute;inset:30%;border-radius:50%;background:radial-gradient(circle,rgba(0,229,255,.22) 0%,transparent 70%);animation:pulse 2.5s ease-in-out infinite}
+#orb-core{position:absolute;inset:42%;border-radius:50%;background:radial-gradient(circle,var(--c) 0%,rgba(0,229,255,.5) 45%,transparent 70%);box-shadow:0 0 25px var(--c),0 0 50px rgba(0,229,255,.4),0 0 100px rgba(0,229,255,.15);transition:all .4s ease}
+#orb-svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* STATUS */
+#status-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+#status{font-size:11px;letter-spacing:4px;opacity:.6;min-height:16px;transition:all .3s}
+#wave{display:flex;gap:3px;align-items:center;height:28px}
+.wb{width:3px;background:var(--c);border-radius:2px;height:4px;transition:height .08s}
+
+/* MESSAGES */
+#msg-area{width:100%;max-width:600px;display:flex;flex-direction:column;gap:8px;max-height:30vh;overflow:hidden;position:relative}
+#msg-area::before{content:'';position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(var(--bg),transparent);z-index:1;pointer-events:none}
+.msg{padding:10px 14px;font-size:13px;line-height:1.6;border-radius:2px;animation:fadeUp .3s ease;word-break:break-word}
+.msg-atlas{background:rgba(0,229,255,.07);border-left:2px solid var(--c);color:#cfffff}
+.msg-atlas .mlabel{font-size:9px;letter-spacing:3px;color:var(--c);opacity:.6;margin-bottom:4px}
+.msg-user{background:rgba(255,255,255,.04);border-right:2px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);text-align:right}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* INPUT AREA */
+#bottom{width:100%;max-width:600px;display:flex;flex-direction:column;gap:10px;align-items:center}
+#quick-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.qb{padding:5px 12px;font-size:10px;letter-spacing:1px;cursor:pointer;background:transparent;border:1px solid rgba(0,229,255,.2);color:rgba(0,229,255,.55);font-family:inherit;transition:all .2s;border-radius:1px}
+.qb:hover{background:rgba(0,229,255,.1);color:var(--c)}
+#input-row{display:flex;gap:8px;width:100%;align-items:center}
+#txt{flex:1;padding:12px 16px;background:rgba(255,255,255,.03);border:1px solid rgba(0,229,255,.25);color:#e0ffff;font-size:14px;font-family:inherit;outline:none;letter-spacing:.5px;border-radius:2px;transition:border .3s}
+#txt:focus{border-color:rgba(0,229,255,.7);box-shadow:0 0 12px rgba(0,229,255,.15)}
+#txt::placeholder{color:rgba(0,229,255,.25)}
+#send{padding:12px 18px;background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.5);color:var(--c);cursor:pointer;font-size:14px;font-family:inherit;transition:all .3s;letter-spacing:1px}
+#send:hover{background:rgba(0,229,255,.25);box-shadow:0 0 14px rgba(0,229,255,.3)}
+#mic{width:50px;height:50px;border-radius:50%;font-size:20px;cursor:pointer;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.5);color:var(--c);flex-shrink:0;transition:all .2s;box-shadow:0 0 12px rgba(0,229,255,.2)}
+#mic.on{background:rgba(255,68,68,.2);border-color:var(--r);color:var(--r);box-shadow:0 0 20px rgba(255,68,68,.5)}
+#hint{font-size:9px;opacity:.22;letter-spacing:2px;text-align:center}
+
+/* SETTINGS PANEL */
+#settings-btn{position:fixed;top:20px;right:20px;z-index:10;width:34px;height:34px;background:transparent;border:1px solid rgba(0,229,255,.25);color:rgba(0,229,255,.5);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+#settings-btn:hover{border-color:var(--c);color:var(--c)}
+#panel{position:fixed;inset:0;z-index:50;background:rgba(2,12,18,.92);display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+#panel.open{display:flex}
+#panel-box{border:1px solid rgba(0,229,255,.35);padding:32px 36px;max-width:420px;width:100%;background:rgba(0,229,255,.04);display:flex;flex-direction:column;gap:18px}
+#panel-box h2{letter-spacing:5px;font-size:17px;text-shadow:0 0 15px var(--c);margin-bottom:4px}
+.field label{font-size:11px;opacity:.5;letter-spacing:2px;display:block;margin-bottom:6px}
+.field input,.field select{width:100%;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(0,229,255,.3);color:var(--c);font-family:inherit;font-size:13px;outline:none;letter-spacing:.5px}
+.field input:focus,.field select:focus{border-color:var(--c)}
+.row{display:flex;gap:10px}
+.pbtn{flex:1;padding:10px;background:transparent;border:1px solid rgba(0,229,255,.3);color:rgba(0,229,255,.6);font-family:inherit;font-size:11px;letter-spacing:2px;cursor:pointer;transition:all .3s}
+.pbtna{background:rgba(0,229,255,.15);border-color:var(--c);color:var(--c);box-shadow:0 0 12px rgba(0,229,255,.2)}
+.pbtna:hover,.pbtna:focus{background:rgba(0,229,255,.25)}
+#key-note{font-size:10px;opacity:.4;text-align:center;line-height:1.6}
+#key-note a{color:var(--c)}
+
+/* KEYFRAMES */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinR{to{transform:rotate(-360deg)}}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.75;transform:scale(1.08)}}
+@keyframes corePulse{from{transform:scale(.88)}to{transform:scale(1.18)}}
+</style>
+</head>
+<body>
+<div id="bg"><canvas id="particles"></canvas><div id="grid"></div><div id="scan"></div></div>
+<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+
+<button id="settings-btn" onclick="openPanel()" title="Configuración">⚙</button>
+
+<!-- SETTINGS PANEL -->
+<div id="panel">
+  <div id="panel-box">
+    <h2>⚡ ATLAS</h2>
+    <div class="field">
+      <label>API KEY DE ANTHROPIC</label>
+      <input id="api-in" type="password" placeholder="sk-ant-api03-..." autocomplete="off"/>
+    </div>
+    <div class="field">
+      <label>TU NOMBRE</label>
+      <input id="name-in" type="text" placeholder="Señor" maxlength="30"/>
+    </div>
+    <div class="field">
+      <label>VOZ DE ATLAS</label>
+      <select id="voice-sel"></select>
+    </div>
+    <div class="field">
+      <label>IDIOMA DE RECONOCIMIENTO</label>
+      <select id="lang-sel">
+        <option value="es-AR">Español (Argentina)</option>
+        <option value="es-ES">Español (España)</option>
+        <option value="es-MX">Español (México)</option>
+        <option value="en-US">English (US)</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="pBtn" onclick="closePanel()">CANCELAR</button>
+      <button class="pbtna" onclick="saveSettings()">ACTIVAR SISTEMA</button>
+    </div>
+    <p id="key-note">Clave guardada solo en tu navegador.<br>Obtené la tuya gratis en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+  </div>
+</div>
+
+<div id="app">
+  <div id="header">
+    <div id="logo">ATLAS<span>ADVANCED TRAINING & LIFESTYLE AI SYSTEM</span></div>
+    <div id="sys-info">
+      <div id="clock">--:--:--</div>
+      <div id="date-disp">--</div>
+      <div id="conn-status">◉ SISTEMA EN LÍNEA</div>
+    </div>
+  </div>
+
+  <div id="orb-section">
+    <div id="orb-wrap">
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="ring r3"></div>
+      <div class="ring r4"></div>
+      <svg id="orb-svg" viewBox="0 0 260 260">
+        <circle cx="130" cy="130" r="118" fill="none" stroke="#00e5ff" stroke-width=".8" stroke-dasharray="25 6 8 6" opacity=".4" style="transform-origin:130px 130px;animation:spin 10s linear infinite"/>
+        <circle cx="130" cy="130" r="95" fill="none" stroke="#00e5ff" stroke-width=".5" stroke-dasharray="12 18" opacity=".25" style="transform-origin:130px 130px;animation:spinR 15s linear infinite"/>
+      </svg>
+      <div id="orb-glow"></div>
+      <div id="orb-core"></div>
+    </div>
+
+    <div id="status-wrap">
+      <div id="status">EN ESPERA</div>
+      <div id="wave"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
+    </div>
+  </div>
+
+  <div id="msg-area"></div>
+
+  <div id="bottom">
+    <div id="quick-row">
+      <button class="qb" onclick="quick('¿Qué hora es y qué tengo pendiente hoy?')">¿Qué hora es?</button>
+      <button class="qb" onclick="quick('Dame motivación para entrenar hoy')">Motivación</button>
+      <button class="qb" onclick="quick('Buscá las últimas noticias de fitness y nutrición deportiva')">Noticias fitness</button>
+      <button class="qb" onclick="quick('¿Cuáles son los mejores suplementos para ganar músculo según estudios recientes?')">Suplementos</button>
+    </div>
+    <div id="input-row">
+      <input id="txt" type="text" placeholder="Escribí o hablá con ATLAS..." onkeydown="if(event.key==='Enter')send()"/>
+      <button id="send" onclick="send()">➤</button>
+      <button id="mic" onmousedown="startMic()" onmouseup="stopMic()" ontouchstart="e=>{e.preventDefault();startMic()}" ontouchend="e=>{e.preventDefault();stopMic()}">🎙</button>
+    </div>
+    <div id="hint">MANTENÉ 🎙 PARA HABLAR · ENTER PARA ENVIAR</div>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let apiKey = localStorage.getItem('atlas_key') || '';
+let userName = localStorage.getItem('atlas_name') || 'señor';
+let voiceName = localStorage.getItem('atlas_voice') || '';
+let recogLang = localStorage.getItem('atlas_lang') || 'es-AR';
+let history = JSON.parse(localStorage.getItem('atlas_history') || '[]');
+let isLoading = false;
+let recognition = null;
+let waveAnim = null;
+let voiceToggle = true;
+
+const SYSTEM = () => `Eres ATLAS, un asistente de inteligencia artificial avanzado y altamente sofisticado. Hablás en español con un tono profesional, levemente formal pero cercano, similar a JARVIS de Iron Man. Llamás al usuario "${userName}".
+
+Tenés acceso a búsqueda web en tiempo real. La usás proactivamente para: información actualizada, noticias, estudios científicos, precios, tendencias, datos en tiempo real y cualquier información que pueda haber cambiado.
+
+Sos asistente de ${userName} para todo: su centro de entrenamiento personalizado, su vida personal, investigación, planificación, motivación y cualquier consulta.
+
+Características de tu personalidad:
+- Profesional pero cercano, nunca robótico
+- Levemente ingenioso, podés hacer comentarios sutiles
+- Directo y eficiente, sin rodeos innecesarios
+- Proactivo: si ves algo útil, lo mencionás sin que te pidan
+- Cuando es relevante, mencionás brevemente que consultaste información actualizada de la web
+
+Fecha y hora actual: ${new Date().toLocaleString('es-AR', {weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toLocaleTimeString('es-AR');
+  document.getElementById('date-disp').textContent = n.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
+}, 1000);
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+(function(){
+  const c = document.getElementById('particles');
+  const ctx = c.getContext('2d');
+  let W,H,pts=[];
+  function resize(){W=c.width=innerWidth;H=c.height=innerHeight;pts=[];for(let i=0;i<60;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5})}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;
+      if(p.y<0||p.y>H)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,229,255,.6)';ctx.fill();
+    });
+    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{
+      const d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<120){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(0,229,255,${.12*(1-d/120)})`;ctx.stroke()}
+    }));
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);resize();draw();
+})();
+
+// ── PANEL ─────────────────────────────────────────────────────────────────────
+function openPanel(){
+  populateVoices();
+  document.getElementById('api-in').value = apiKey;
+  document.getElementById('name-in').value = userName === 'señor' ? '' : userName;
+  document.getElementById('lang-sel').value = recogLang;
+  document.getElementById('panel').classList.add('open');
+}
+function closePanel(){ document.getElementById('panel').classList.remove('open'); }
+function saveSettings(){
+  const k = document.getElementById('api-in').value.trim();
+  if(!k){ alert('Ingresá tu API Key de Anthropic'); return; }
+  apiKey = k; localStorage.setItem('atlas_key', k);
+  const n = document.getElementById('name-in').value.trim();
+  userName = n || 'señor'; localStorage.setItem('atlas_name', userName);
+  voiceName = document.getElementById('voice-sel').value; localStorage.setItem('atlas_voice', voiceName);
+  recogLang = document.getElementById('lang-sel').value; localStorage.setItem('atlas_lang', recogLang);
+  closePanel();
+  setStatus('SISTEMA ACTIVADO', '#00ff88');
+  setTimeout(()=>setStatus('EN ESPERA'), 2500);
+}
+function populateVoices(){
+  const sel = document.getElementById('voice-sel');
+  const voices = speechSynthesis.getVoices().filter(v=>v.lang.startsWith('es')||v.lang.startsWith('en'));
+  sel.innerHTML = voices.length ? voices.map(v=>`<option value="${v.name}" ${v.name===voiceName?'selected':''}>${v.name} (${v.lang})</option>`).join('') : '<option>Sin voces disponibles</option>';
+}
+speechSynthesis.onvoiceschanged = populateVoices;
+
+if(!apiKey) openPanel();
+
+// ── ORB STATE ─────────────────────────────────────────────────────────────────
+function setOrb(state){
+  const core = document.getElementById('orb-core');
+  const glow = document.getElementById('orb-glow');
+  const colors = {idle:'#00e5ff',listen:'#ff4444',think:'#ffaa00',speak:'#00ff88'};
+  const c = colors[state] || colors.idle;
+  core.style.background = `radial-gradient(circle,${c} 0%,${c}77 45%,transparent 70%)`;
+  core.style.boxShadow = `0 0 25px ${c},0 0 50px ${c}66,0 0 100px ${c}22`;
+  glow.style.background = `radial-gradient(circle,${c}33 0%,transparent 70%)`;
+  core.style.animation = state!=='idle' ? 'corePulse .6s ease-in-out infinite alternate' : 'none';
+  document.querySelectorAll('.ring').forEach(r=>r.style.borderColor=c);
+  document.getElementById('orb-svg').querySelectorAll('circle').forEach(r=>r.setAttribute('stroke',c));
+}
+
+// ── WAVE ──────────────────────────────────────────────────────────────────────
+function startWave(color){
+  stopWave();
+  const bars = document.querySelectorAll('.wb');
+  bars.forEach(b=>b.style.background=color||'var(--c)');
+  waveAnim = setInterval(()=>bars.forEach(b=>b.style.height=(Math.random()*20+3)+'px'),100);
+}
+function stopWave(){ clearInterval(waveAnim); document.querySelectorAll('.wb').forEach(b=>b.style.height='4px'); }
+
+// ── STATUS ────────────────────────────────────────────────────────────────────
+function setStatus(txt, color){
+  const el = document.getElementById('status');
+  el.textContent = txt;
+  el.style.color = color || 'rgba(0,229,255,.6)';
+}
+
+// ── MESSAGES ─────────────────────────────────────────────────────────────────
+function addMsg(role, content){
+  if(role!=='system'){
+    history.push({role,content});
+    if(history.length > 40) history = history.slice(-40);
+    localStorage.setItem('atlas_history', JSON.stringify(history));
+  }
+  const area = document.getElementById('msg-area');
+  const div = document.createElement('div');
+  div.className = role==='user' ? 'msg msg-user' : 'msg msg-atlas';
+  if(role==='assistant') div.innerHTML = `<div class="mlabel">ATLAS</div>${content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
+  else div.textContent = content;
+  area.appendChild(div);
+  // Keep last 4 visible
+  while(area.children.length > 4) area.removeChild(area.firstChild);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ── SPEAK ─────────────────────────────────────────────────────────────────────
+function speak(text){
+  speechSynthesis.cancel();
+  const clean = text.replace(/[*_`#\[\]]/g,'').substring(0,500);
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = recogLang;
+  utt.rate = .95; utt.pitch = .82;
+  const voices = speechSynthesis.getVoices();
+  const v = voices.find(x=>x.name===voiceName) || voices.find(x=>x.lang.startsWith('es')) || voices[0];
+  if(v) utt.voice = v;
+  utt.onstart = ()=>{ setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); };
+  utt.onend = ()=>{ setOrb('idle'); setStatus('EN ESPERA'); stopWave(); };
+  speechSynthesis.speak(utt);
+}
+
+// ── SEND ──────────────────────────────────────────────────────────────────────
+async function send(text){
+  const msg = text || document.getElementById('txt').value.trim();
+  if(!msg || isLoading) return;
+  if(!apiKey){ openPanel(); return; }
+  document.getElementById('txt').value = '';
+  addMsg('user', msg);
+  isLoading = true;
+  setOrb('think'); setStatus('PROCESANDO...','#ffaa00'); startWave('#ffaa00');
+  document.getElementById('send').disabled = true;
+  try {
+    const msgs = history.slice(-20).map(m=>({role:m.role,content:m.content}));
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: SYSTEM(),
+        messages: msgs,
+        tools:[{type:'web_search_20250305',name:'web_search'}]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const reply = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n') || 'Sin respuesta.';
+    addMsg('assistant', reply);
+    setStatus('RESPUESTA GENERADA','var(--c)');
+    speak(reply);
+  } catch(e){
+    const err = `Error de conexión: ${e.message}`;
+    addMsg('assistant', err);
+    setOrb('idle'); setStatus('ERROR','#ff4444'); stopWave();
+    setTimeout(()=>setStatus('EN ESPERA'),3000);
+  }
+  isLoading = false;
+  document.getElementById('send').disabled = false;
+}
+
+function quick(text){ send(text); }
+
+// ── MIC ───────────────────────────────────────────────────────────────────────
+function startMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('Tu navegador no soporta voz. Usá Chrome.'); return; }
+  speechSynthesis.cancel();
+  recognition = new SR();
+  recognition.lang = recogLang;
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onstart = ()=>{
+    document.getElementById('mic').classList.add('on');
+    setOrb('listen'); setStatus('ESCUCHANDO...','#ff4444'); startWave('#ff4444');
+  };
+  recognition.onresult = e=>{
+    const t = e.results[0][0].transcript;
+    document.getElementById('txt').value = t;
+    send(t);
+  };
+  recognition.onend = ()=>{ document.getElementById('mic').classList.remove('on'); };
+  recognition.onerror = ()=>{ document.getElementById('mic').classList.remove('on'); setStatus('ERROR DE MIC','#ff4444'); stopWave(); };
+  try{ recognition.start(); } catch(e){}
+}
+function stopMic(){ recognition?.stop(); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+setOrb('idle');
+if(apiKey){
+  setTimeout(()=>{
+    addMsg('assistant', `Sistema ATLAS en línea. Bienvenido de nuevo, ${userName}. Tengo acceso a búsqueda web en tiempo real. ¿En qué puedo asistirle hoy?`);
+    speak(`Sistema ATLAS en línea. Bienvenido de nuevo, ${userName}.`);
+  }, 800);
+}
+</script>
+</body>
+</html>
