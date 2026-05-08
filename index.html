@@ -31,9 +31,9 @@ canvas#particles{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
 #orb-section{display:flex;flex-direction:column;align-items:center;gap:24px;flex:1;justify-content:center}
 #orb-wrap{position:relative;width:clamp(160px,28vw,220px);height:clamp(200px,35vw,280px)}
 .ring{display:none}
-#sil-glow{position:absolute;inset:-15%;border-radius:50%;background:radial-gradient(circle,rgba(26,111,255,.1) 0%,transparent 70%);filter:blur(25px);animation:pulse 4s ease-in-out infinite;pointer-events:none}
-#binary-canvas{position:absolute;inset:0;width:100%;height:100%}
-#sil-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#sil-glow{position:absolute;inset:-20%;border-radius:50%;background:radial-gradient(circle,rgba(26,111,255,.12) 0%,transparent 70%);filter:blur(30px);animation:pulse 4s ease-in-out infinite;pointer-events:none}
+#binary-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#sil-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 #orb-glow{display:none}#orb-core{display:none}#orb-svg{display:none}
 
 /* STATUS */
@@ -92,6 +92,7 @@ canvas#particles{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
 </head>
 <body>
 <div id="bg"><canvas id="particles"></canvas><div id="grid"></div><div id="scan"></div></div>
+<canvas id="binary-canvas"></canvas>
 <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
 
 <button id="settings-btn" onclick="openPanel()" title="Configuración">⚙</button>
@@ -142,7 +143,6 @@ canvas#particles{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
   <div id="orb-section">
     <div id="orb-wrap">
       <div id="sil-glow"></div>
-      <canvas id="binary-canvas"></canvas>
       <svg id="sil-svg" viewBox="0 0 220 280" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="silClip">
@@ -284,51 +284,73 @@ function setOrb(state){
   }
 }
 
-// ── BINARY SILHOUETTE ─────────────────────────────────────────────────────────
+// ── BINARY RAIN FULL SCREEN ───────────────────────────────────────────────────
 (function(){
   const canvas = document.getElementById('binary-canvas');
   const ctx = canvas.getContext('2d');
-  const W = 220, H = 280;
-  canvas.width = W; canvas.height = H;
 
-  function silPath(){
-    ctx.beginPath();
-    ctx.ellipse(110, 82, 52, 60, 0, 0, Math.PI*2);
-    ctx.moveTo(10, 280);
-    ctx.lineTo(10, 210);
-    ctx.quadraticCurveTo(18, 172, 55, 158);
-    ctx.quadraticCurveTo(80, 148, 110, 148);
-    ctx.quadraticCurveTo(140, 148, 165, 158);
-    ctx.quadraticCurveTo(202, 172, 210, 210);
-    ctx.lineTo(210, 280);
-    ctx.closePath();
+  // Offscreen canvas para detectar si un punto está dentro de la silueta
+  const oc = document.createElement('canvas');
+  oc.width = 220; oc.height = 280;
+  const oc2 = oc.getContext('2d');
+
+  function buildSilPath(c){
+    c.beginPath();
+    c.ellipse(110,82,52,60,0,0,Math.PI*2);
+    c.moveTo(10,280); c.lineTo(10,210);
+    c.quadraticCurveTo(18,172,55,158);
+    c.quadraticCurveTo(80,148,110,148);
+    c.quadraticCurveTo(140,148,165,158);
+    c.quadraticCurveTo(202,172,210,210);
+    c.lineTo(210,280); c.closePath();
   }
 
-  const cols = Math.floor(W / 9);
-  const drops = Array.from({length:cols}, ()=>Math.random()*H);
+  function isInSil(px,py){
+    const wrap = document.getElementById('orb-wrap');
+    if(!wrap) return false;
+    const rect = wrap.getBoundingClientRect();
+    const lx = (px - rect.left) * (220/rect.width);
+    const ly = (py - rect.top)  * (280/rect.height);
+    buildSilPath(oc2);
+    return oc2.isPointInPath(lx,ly);
+  }
+
+  const CHAR_W = 11;
+  let W, H, drops=[];
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    drops = Array.from({length: Math.ceil(W/CHAR_W)}, ()=>Math.random()*H);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+  }
 
   function draw(){
-    ctx.clearRect(0,0,W,H);
-    ctx.save();
-    silPath();
-    ctx.clip();
-    ctx.fillStyle = 'rgba(2,9,24,0.18)';
+    ctx.fillStyle='rgba(2,9,24,0.13)';
     ctx.fillRect(0,0,W,H);
-    ctx.font = '8px Courier New';
+    ctx.font='9px Courier New';
+    const [r,g,b] = hexToRgb(binaryColor);
     drops.forEach((y,i)=>{
-      const x = i*9+2;
+      const x = i*CHAR_W;
       const ch = Math.random()>.5?'1':'0';
-      const alpha = Math.random()*.55+.2;
-      const hex = binaryColor.replace('#','');
-      const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
-      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      if(isInSil(x,y)){
+        const a = Math.random()*.55+.55;
+        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
+      } else {
+        ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*.04+.015})`;
+      }
       ctx.fillText(ch, x, y);
-      drops[i] = y > H+10 ? 0 : y+9;
+      drops[i] = y>H+10 ? 0 : y+11;
     });
-    ctx.restore();
   }
 
-  setInterval(draw, 70);
+  setInterval(draw,65);
 })();
 
 // ── WAVE ──────────────────────────────────────────────────────────────────────
