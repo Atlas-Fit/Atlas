@@ -22,10 +22,13 @@ canvas#particles{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
 /* LAYOUT */
 #app{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:20px 16px 24px}
 
+/* BG TITLE */
+#bg-title{position:fixed;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;pointer-events:none;user-select:none}
+#bg-title span{font-size:clamp(70px,17vw,200px);font-weight:700;letter-spacing:.18em;color:rgba(26,111,255,.10);text-shadow:0 0 80px rgba(26,111,255,.18),0 0 160px rgba(26,111,255,.08);filter:blur(4px);font-family:'Exo 2',sans-serif;white-space:nowrap}
+
 /* HEADER */
-#header{width:100%;display:flex;justify-content:space-between;align-items:flex-start}
-#logo{letter-spacing:10px;font-size:clamp(28px,5vw,42px);font-weight:700;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.9),0 0 40px rgba(255,255,255,.4)}
-#logo span{font-size:10px;opacity:.5;letter-spacing:3px;display:block;margin-top:2px;font-weight:300}
+#header{width:100%;display:flex;justify-content:flex-end;align-items:flex-start}
+#logo{display:none}
 #sys-info{text-align:right;font-size:11px;opacity:.7;letter-spacing:1px;line-height:1.8;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.4)}
 
 /* ORB */
@@ -118,6 +121,7 @@ body.state-idle #orb-wrap{filter:drop-shadow(0 0 14px rgba(26,111,255,.25))}
 <body>
 <div id="bg"><canvas id="particles"></canvas><div id="grid"></div><div id="scan"></div></div>
 <canvas id="binary-canvas"></canvas>
+<div id="bg-title"><span>ATLAS AI</span></div>
 <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
 
 <button id="settings-btn" onclick="openPanel()" title="Configuración">⚙</button>
@@ -157,7 +161,6 @@ body.state-idle #orb-wrap{filter:drop-shadow(0 0 14px rgba(26,111,255,.25))}
 
 <div id="app">
   <div id="header">
-    <div id="logo">ATLAS AI</div>
     <div id="sys-info">
       <div id="clock">--:--:--</div>
       <div id="date-disp">--</div>
