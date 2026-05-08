@@ -312,7 +312,7 @@ function setOrb(state){
   function resize(){
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
-    drops = Array.from({length: Math.ceil(W/CHAR_W)}, ()=>Math.random()*H);
+    initDrops();
   }
   window.addEventListener('resize', resize);
   resize();
@@ -329,6 +329,14 @@ function setOrb(state){
     return oc2.isPointInPath(lx, ly);
   }
 
+  // Cada columna tiene 3 gotas para que siempre haya una en la silueta
+  function initDrops(){
+    const cols = Math.ceil(W/CHAR_W);
+    drops = Array.from({length: cols}, () =>
+      Array.from({length:3}, (_,k) => (H/3)*k + Math.random()*(H/3))
+    );
+  }
+
   function draw(){
     rotAngle += 0.012;
     const sinA = Math.sin(rotAngle);
@@ -336,28 +344,28 @@ function setOrb(state){
     const wrap = document.getElementById('orb-wrap');
     const rect = wrap ? wrap.getBoundingClientRect() : null;
 
-    ctx.fillStyle='rgba(2,9,24,0.1)';
+    ctx.fillStyle='rgba(2,9,24,0.08)';
     ctx.fillRect(0,0,W,H);
     ctx.font='10px Courier New';
     const [r,g,b] = hexToRgb(binaryColor);
 
-    drops.forEach((y,i)=>{
+    drops.forEach((colDrops,i)=>{
       const x = i*CHAR_W;
-      const ch = CHARS[Math.floor(Math.random()*CHARS.length)];
-
-      if(isInSil(x, y, rect)){
-        // Silueta: siempre muy brillante, con leve variacion 3D en los bordes
-        const centerX = rect.left + rect.width/2;
-        const normX = (x - centerX) / (rect.width/2);
-        const edge = Math.cos(normX * Math.PI/2);
-        const rotShade = 0.75 + 0.25 * Math.cos((normX - sinA) * Math.PI);
-        const a = Math.min(1, 0.75 + 0.25 * edge * rotShade);
-        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
-      } else {
-        ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.18+0.08})`;
-      }
-      ctx.fillText(ch, x, y);
-      drops[i] = y>H+10 ? 0 : y+11;
+      colDrops.forEach((y,j)=>{
+        const ch = CHARS[Math.floor(Math.random()*CHARS.length)];
+        if(isInSil(x, y, rect)){
+          const centerX = rect.left + rect.width/2;
+          const normX = (x - centerX) / (rect.width/2);
+          const edge = Math.cos(normX * Math.PI/2);
+          const rotShade = 0.75 + 0.25 * Math.cos((normX - sinA) * Math.PI);
+          const a = Math.min(1, 0.75 + 0.25 * edge * rotShade);
+          ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
+        } else {
+          ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.18+0.08})`;
+        }
+        ctx.fillText(ch, x, y);
+        colDrops[j] = y>H+10 ? 0 : y+13;
+      });
     });
   }
 
