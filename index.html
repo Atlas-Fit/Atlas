@@ -204,7 +204,7 @@ body.state-idle #orb-wrap{filter:drop-shadow(0 0 14px rgba(26,111,255,.25))}
       <button id="send" onclick="send()">➤</button>
       <button id="mic" onclick="toggleMic()">🎙</button>
     </div>
-    <div id="hint">MANTENÉ 🎙 PARA HABLAR · ENTER PARA ENVIAR</div>
+    <div id="hint">CLICK 🎙 PARA HABLAR · ENTER PARA ENVIAR</div>
   </div>
 </div>
 
@@ -589,45 +589,78 @@ function quick(text){ send(text); }
 
 // ── MIC ───────────────────────────────────────────────────────────────────────
 let micActive = false;
+let _micGotResult = false;
+
 function toggleMic(){
   if(micActive){ stopMic(); return; }
   startMic();
 }
+
 function startMic(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ alert('Tu navegador no soporta voz. Usá Chrome.'); return; }
+  if(!SR){
+    setStatus('USÁ CHROME PARA VOZ','#ff4444');
+    setTimeout(()=>setStatus('EN ESPERA'),3000); return;
+  }
+  if(isLoading) return;
   speechSynthesis.cancel();
+  if(recognition){ try{ recognition.abort(); }catch(e){} recognition=null; }
+
+  _micGotResult = false;
   recognition = new SR();
   recognition.lang = recogLang || 'es-AR';
   recognition.continuous = false;
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
   recognition.onstart = ()=>{
-    micActive = true;
-    clapEnabled = false;
+    micActive = true; clapEnabled = false;
     document.getElementById('mic').classList.add('on');
     setOrb('listen'); setStatus('ESCUCHANDO...','#ff4444'); startWave('#ff4444');
   };
+
   recognition.onresult = e=>{
-    const t = e.results[0][0].transcript;
+    const t = Array.from(e.results).map(r=>r[0].transcript).join(' ').trim();
+    if(!t) return;
+    _micGotResult = true;
     document.getElementById('txt').value = t;
-    stopMic();
+    micActive = false;
+    document.getElementById('mic').classList.remove('on');
+    try{ recognition.stop(); }catch(er){}
+    setTimeout(()=>{ clapEnabled = true; }, 4000);
     send(t);
   };
+
+  recognition.onerror = e=>{
+    micActive = false; _micGotResult = false;
+    document.getElementById('mic').classList.remove('on');
+    setOrb('idle'); stopWave();
+    const msgs = { 'not-allowed':'PERMISO DE MIC DENEGADO', 'no-speech':'NO SE DETECTÓ VOZ', 'network':'ERROR DE RED', 'aborted':'MIC CANCELADO' };
+    setStatus(msgs[e.error]||`ERROR MIC: ${e.error}`,'#ff4444');
+    setTimeout(()=>{ setStatus('EN ESPERA'); clapEnabled = true; }, 3000);
+  };
+
   recognition.onend = ()=>{
     micActive = false;
     document.getElementById('mic').classList.remove('on');
-    setOrb('idle'); setStatus('EN ESPERA'); stopWave();
-    setTimeout(()=>{ clapEnabled = true; }, 3000);
+    // Si ya enviamos el resultado no reseteamos el estado (send() lo maneja)
+    if(!_micGotResult){
+      setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+      setTimeout(()=>{ clapEnabled = true; }, 1000);
+    }
   };
-  recognition.onerror = e=>{
+
+  try{ recognition.start(); }
+  catch(e){
     micActive = false;
-    document.getElementById('mic').classList.remove('on');
-    setStatus('PERMISO DE MIC DENEGADO','#ff4444'); stopWave();
+    setStatus('NO SE PUDO INICIAR EL MIC','#ff4444');
     setTimeout(()=>setStatus('EN ESPERA'),3000);
-  };
-  try{ recognition.start(); } catch(e){ micActive=false; }
+  }
 }
-function stopMic(){ if(recognition) recognition.stop(); }
+
+function stopMic(){
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+}
 
 // ── CLAP DETECTION ────────────────────────────────────────────────────────────
 let clapEnabled = true;
