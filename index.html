@@ -608,9 +608,9 @@ function startMic(){
 
   _micGotResult = false;
   recognition = new SR();
-  recognition.lang = recogLang || 'es-AR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.lang = recogLang || 'es-ES';
+  recognition.continuous = true;
+  recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
   recognition.onstart = ()=>{
@@ -620,15 +620,24 @@ function startMic(){
   };
 
   recognition.onresult = e=>{
-    const t = Array.from(e.results).map(r=>r[0].transcript).join(' ').trim();
-    if(!t) return;
-    _micGotResult = true;
-    document.getElementById('txt').value = t;
-    micActive = false;
-    document.getElementById('mic').classList.remove('on');
-    try{ recognition.stop(); }catch(er){}
-    setTimeout(()=>{ clapEnabled = true; }, 4000);
-    send(t);
+    let interim = '', final = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) final += t + ' ';
+      else interim += t;
+    }
+    // Mostrar lo que está escuchando en tiempo real
+    if(interim) setStatus('🎙 ' + interim.slice(0,40),'#ff4444');
+    if(final.trim()){
+      _micGotResult = true;
+      const text = final.trim();
+      document.getElementById('txt').value = text;
+      micActive = false;
+      document.getElementById('mic').classList.remove('on');
+      try{ recognition.stop(); }catch(er){}
+      setTimeout(()=>{ clapEnabled = true; }, 4000);
+      send(text);
+    }
   };
 
   recognition.onerror = e=>{
