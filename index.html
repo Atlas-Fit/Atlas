@@ -586,6 +586,43 @@ function startMic(){
 }
 function stopMic(){ if(recognition) recognition.stop(); }
 
+// ── CLAP DETECTION ────────────────────────────────────────────────────────────
+(function(){
+  let lastClap=0, clapCount=0, clapTimer=null;
+  navigator.mediaDevices.getUserMedia({audio:true,video:false})
+    .then(stream=>{
+      const ac = new(window.AudioContext||window.webkitAudioContext)();
+      const src = ac.createMediaStreamSource(stream);
+      const analyser = ac.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.1;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      const THRESHOLD = 175, MIN_GAP = 180, MAX_WIN = 1400;
+      function detect(){
+        analyser.getByteFrequencyData(buf);
+        const peak = Math.max(...buf);
+        const now = Date.now();
+        if(peak > THRESHOLD && now - lastClap > MIN_GAP){
+          lastClap = now;
+          clapCount++;
+          if(clapCount===1){
+            setStatus('👏 ...','#ffaa00');
+            clapTimer = setTimeout(()=>{ clapCount=0; setStatus('EN ESPERA'); }, MAX_WIN);
+          } else if(clapCount>=2){
+            clearTimeout(clapTimer);
+            clapCount=0;
+            setStatus('ACTIVADO POR APLAUSO','#00ff88');
+            setTimeout(()=>toggleMic(), 200);
+          }
+        }
+        requestAnimationFrame(detect);
+      }
+      detect();
+    })
+    .catch(()=>{});
+})();
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 setOrb('idle');
 if(apiKey){
