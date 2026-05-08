@@ -613,7 +613,9 @@ function stopMic(){ if(recognition) recognition.stop(); }
             clearTimeout(clapTimer);
             clapCount=0;
             setStatus('ACTIVADO POR APLAUSO','#00ff88');
-            setTimeout(()=>toggleMic(), 200);
+            const h = new Date().getHours();
+            const saludo = h<12 ? 'Buenos días' : h<19 ? 'Buenas tardes' : 'Buenas noches';
+            setTimeout(()=>send(`${saludo} ATLAS, ¿cómo estamos hoy?`), 300);
           }
         }
         requestAnimationFrame(detect);
