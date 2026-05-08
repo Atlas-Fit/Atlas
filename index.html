@@ -509,7 +509,7 @@ function getVoice(){
 
 function speak(text){
   speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim();
+  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/\s+/g,' ').trim();
   const sentences = clean.match(/[^.!?]{1,120}[.!?]*/g) || [clean];
   let i = 0;
   setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false;
@@ -527,7 +527,7 @@ function speak(text){
       return;
     }
     const utt = new SpeechSynthesisUtterance(sentences[i++]);
-    utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
+    utt.lang='es-ES'; utt.rate=1.05; utt.pitch=0.85;
     const v = getVoice();
     if(v) utt.voice=v;
     utt.onend = next;
@@ -592,6 +592,7 @@ let micActive = false;
 let _micGotResult = false;
 
 function toggleMic(){
+  if(speechSynthesis.speaking){ speechSynthesis.cancel(); setOrb('idle'); setStatus('EN ESPERA'); stopWave(); return; }
   if(micActive){ stopMic(); return; }
   startMic();
 }
@@ -712,7 +713,7 @@ let clapEnabled = true;
             setTimeout(()=>{
               speechSynthesis.cancel();
               const utt = new SpeechSynthesisUtterance(msg.replace(/[,;]/g,' '));
-              utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
+              utt.lang='es-ES'; utt.rate=1.05; utt.pitch=0.85;
               const voices = speechSynthesis.getVoices();
               const maleNames=['jorge','andres','miguel','pablo','diego','carlos','juan','male'];
               const v = voices.find(x=>maleNames.some(m=>x.name.toLowerCase().includes(m)))
