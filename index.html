@@ -198,6 +198,7 @@ body.state-idle #orb-wrap{filter:drop-shadow(0 0 14px rgba(26,111,255,.25))}
       <button class="qb" onclick="quick('Dame motivación para entrenar hoy')">Motivación</button>
       <button class="qb" onclick="quick('Buscá las últimas noticias de fitness y nutrición deportiva')">Noticias fitness</button>
       <button class="qb" onclick="quick('¿Cuáles son los mejores suplementos para ganar músculo según estudios recientes?')">Suplementos</button>
+      <button class="qb" onclick="showHistory()" style="opacity:.7">📋 Historial</button>
     </div>
     <div id="input-row">
       <input id="txt" type="text" placeholder="Escribí o hablá con ATLAS..." onkeydown="if(event.key==='Enter')send()"/>
@@ -543,6 +544,11 @@ async function send(text){
   const msg = text || document.getElementById('txt').value.trim();
   if(!msg || isLoading) return;
   if(!apiKey){ openPanel(); return; }
+  // Comando de voz: mostrar historial
+  if(/historial|conversaci[oó]n anterior|lo que hablamos/i.test(msg)){
+    document.getElementById('txt').value = '';
+    showHistory(); return;
+  }
   document.getElementById('txt').value = '';
   addMsg('user', msg);
   isLoading = true;
@@ -586,6 +592,27 @@ async function send(text){
 }
 
 function quick(text){ send(text); }
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
+function showHistory(){
+  const area = document.getElementById('msg-area');
+  area.innerHTML = '';
+  if(!history.length){ setStatus('SIN HISTORIAL GUARDADO','#ffaa00'); setTimeout(()=>setStatus('EN ESPERA'),2000); return; }
+  history.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = m.role==='user' ? 'msg msg-user' : 'msg msg-atlas';
+    if(m.role==='assistant'){
+      div.innerHTML = `<div class="mlabel">ATLAS</div><span class="msg-content">${m.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</span>`;
+    } else {
+      div.textContent = m.content;
+    }
+    area.appendChild(div);
+  });
+  area.scrollTop = area.scrollHeight;
+  setStatus('HISTORIAL CARGADO','#00ff88');
+  setTimeout(()=>setStatus('EN ESPERA'),2000);
+  speak('Historial cargado. ' + history.length + ' mensajes.');
+}
 
 // ── MIC ───────────────────────────────────────────────────────────────────────
 let micActive = false;
