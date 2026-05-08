@@ -612,10 +612,11 @@ function stopMic(){ if(recognition) recognition.stop(); }
           } else if(clapCount>=2){
             clearTimeout(clapTimer);
             clapCount=0;
-            setStatus('ACTIVADO POR APLAUSO','#00ff88');
             const h = new Date().getHours();
             const saludo = h<12 ? 'Buenos días' : h<19 ? 'Buenas tardes' : 'Buenas noches';
-            setTimeout(()=>send(`${saludo} ATLAS, ¿cómo estamos hoy?`), 300);
+            const msg = `${saludo}, ${userName}. Sistema ATLAS en línea y listo para asistirle. ¿En qué puedo ayudarle?`;
+            playBootSound();
+            setTimeout(()=>{ addMsg('assistant', msg); speak(msg); }, 300);
           }
         }
         requestAnimationFrame(detect);
