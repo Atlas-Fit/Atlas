@@ -11,8 +11,8 @@ module.exports = async (req, res) => {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ElevenLabs no configurado' });
 
-  // Antoni: voz masculina multilingüe, muy natural en español
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'ErXwobaYiN019PkySvjV';
+  // Franco: voz masculina en español
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'kulszILr6ees0ArU8miO';
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
