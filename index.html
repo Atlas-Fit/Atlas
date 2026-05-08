@@ -479,25 +479,41 @@ function addMsg(role, content){
 }
 
 // ── SPEAK ─────────────────────────────────────────────────────────────────────
+let _voicesReady = false;
+let _voicesReadyCallbacks = [];
+function onVoicesReady(cb){
+  if(_voicesReady){ cb(); return; }
+  _voicesReadyCallbacks.push(cb);
+}
+function _resolveVoices(){
+  if(speechSynthesis.getVoices().length === 0) return;
+  _voicesReady = true;
+  _voicesReadyCallbacks.forEach(fn=>fn());
+  _voicesReadyCallbacks = [];
+}
+speechSynthesis.onvoiceschanged = _resolveVoices;
+_resolveVoices(); // por si ya están cargadas al cargar el script
+
+const MALE_NAMES = ['jorge','andres','miguel','pablo','diego','carlos','juan','male','hombre','david','alex'];
 function getVoice(){
   const voices = speechSynthesis.getVoices();
-  const maleNames = ['jorge','andres','miguel','pablo','diego','carlos','juan','male','hombre'];
-  return voices.find(x=>x.name===voiceName)
-    || voices.find(x=>x.lang==='es-AR')
-    || voices.find(x=>maleNames.some(m=>x.name.toLowerCase().includes(m)))
-    || voices.find(x=>x.lang.startsWith('es'))
+  // 1. Voz guardada por el usuario en configuración
+  if(voiceName){ const saved = voices.find(x=>x.name===voiceName); if(saved) return saved; }
+  // 2. Voz masculina en español argentino
+  const esVoices = voices.filter(v=>v.lang.startsWith('es'));
+  return esVoices.find(x=>MALE_NAMES.some(m=>x.name.toLowerCase().includes(m)))
+    || esVoices.find(x=>x.lang==='es-AR')
+    || esVoices[0]
     || voices[0];
 }
 
 function speak(text){
   speechSynthesis.cancel();
   const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim();
-  // Dividir en oraciones para evitar el bug de Chrome que corta la voz
   const sentences = clean.match(/[^.!?]{1,120}[.!?]*/g) || [clean];
   let i = 0;
   setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false;
 
-  // Workaround bug Chrome: keep-alive cada 10s
   const keepAlive = setInterval(()=>{
     if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); }
     else clearInterval(keepAlive);
@@ -515,10 +531,11 @@ function speak(text){
     const v = getVoice();
     if(v) utt.voice=v;
     utt.onend = next;
-    utt.onerror = next; // si falla una oracion, continua con la siguiente
+    utt.onerror = next;
     speechSynthesis.speak(utt);
   }
-  next();
+  // Esperar que las voces estén cargadas antes de hablar
+  onVoicesReady(next);
 }
 
 // ── SEND ──────────────────────────────────────────────────────────────────────
