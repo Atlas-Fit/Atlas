@@ -533,7 +533,10 @@ async function send(text){
   setOrb('think'); setStatus('PROCESANDO...','#ffaa00'); startWave('#ffaa00');
   document.getElementById('send').disabled = true;
   try {
-    const msgs = history.slice(-20).map(m=>({role:m.role,content:m.content}));
+    // La API exige que el primer mensaje sea siempre del usuario
+    const raw = history.slice(-20);
+    const firstUser = raw.findIndex(m=>m.role==='user');
+    const msgs = (firstUser >= 0 ? raw.slice(firstUser) : raw).map(m=>({role:m.role,content:m.content}));
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
@@ -544,15 +547,14 @@ async function send(text){
       },
       body: JSON.stringify({
         model:'claude-sonnet-4-5',
-        max_tokens:1000,
+        max_tokens:1024,
         system: SYSTEM(),
-        messages: msgs,
-        tools:[{type:'web_search_20250305',name:'web_search'}]
+        messages: msgs
       })
     });
     const data = await res.json();
     if(data.error) throw new Error(data.error.message);
-    const reply = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n') || 'Sin respuesta.';
+    const reply = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim() || 'Sin respuesta.';
     addMsg('assistant', reply);
     setStatus('RESPUESTA GENERADA','var(--c)');
     speak(reply);
@@ -579,7 +581,7 @@ function startMic(){
   if(!SR){ alert('Tu navegador no soporta voz. Usá Chrome.'); return; }
   speechSynthesis.cancel();
   recognition = new SR();
-  recognition.lang = 'es-AR';
+  recognition.lang = recogLang || 'es-AR';
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.onstart = ()=>{
@@ -613,22 +615,28 @@ function stopMic(){ if(recognition) recognition.stop(); }
 // ── CLAP DETECTION ────────────────────────────────────────────────────────────
 let clapEnabled = true;
 (function(){
-  let lastClap=0, clapCount=0, clapTimer=null;
+  let lastClap=0, clapCount=0, clapTimer=null, prevRms=0;
   navigator.mediaDevices.getUserMedia({audio:true,video:false})
     .then(stream=>{
       const ac = new(window.AudioContext||window.webkitAudioContext)();
       const src = ac.createMediaStreamSource(stream);
       const analyser = ac.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.1;
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.0; // sin suavizado para detectar transientes
       src.connect(analyser);
-      const buf = new Uint8Array(analyser.frequencyBinCount);
-      const THRESHOLD = 215, MIN_GAP = 200, MAX_WIN = 1400;
+      const buf = new Uint8Array(analyser.fftSize);
+      // RMS threshold: 0.0-1.0. Un aplauso típico supera 0.2
+      const THRESHOLD = 0.20, MIN_GAP = 280, MAX_WIN = 1600;
       function detect(){
-        analyser.getByteFrequencyData(buf);
-        const peak = Math.max(...buf);
+        analyser.getByteTimeDomainData(buf);
+        // Calcula energía RMS del frame
+        let sum = 0;
+        for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
+        const rms = Math.sqrt(sum/buf.length);
         const now = Date.now();
-        if(clapEnabled && peak > THRESHOLD && now - lastClap > MIN_GAP){
+        // Detecta onset: RMS supera umbral Y salta más del doble vs frame anterior
+        const isTransient = rms > THRESHOLD && rms > prevRms * 1.8;
+        if(clapEnabled && isTransient && now - lastClap > MIN_GAP){
           lastClap = now;
           clapCount++;
           if(clapCount===1){
@@ -643,7 +651,6 @@ let clapEnabled = true;
             const msg = `${saludo} ${userName}. ATLAS en línea. Escuchando.`;
             playBootSound();
             setTimeout(()=>{
-              // Solo hablar, NO agregar al historial para no confundir la API
               speechSynthesis.cancel();
               const utt = new SpeechSynthesisUtterance(msg.replace(/[,;]/g,' '));
               utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
@@ -653,11 +660,12 @@ let clapEnabled = true;
                 || voices.find(x=>x.lang.startsWith('es')) || voices[0];
               if(v) utt.voice=v;
               setOrb('speak'); setStatus('SALUDANDO...','#00ff88'); startWave('#00ff88');
-              utt.onend=()=>{ setOrb('idle'); stopWave(); setTimeout(()=>{ clapEnabled=false; startMic(); },400); };
+              utt.onend=()=>{ setOrb('idle'); stopWave(); setTimeout(()=>{ clapEnabled=true; startMic(); },400); };
               speechSynthesis.speak(utt);
             }, 300);
           }
         }
+        prevRms = rms;
         requestAnimationFrame(detect);
       }
       detect();
