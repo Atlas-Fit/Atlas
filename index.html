@@ -508,38 +508,58 @@ function getVoice(){
     || voices[0];
 }
 
-function speak(text){
+let currentAudio = null;
+function stopSpeech(){
+  if(currentAudio){ currentAudio.pause(); currentAudio=null; }
   speechSynthesis.cancel();
+}
+
+async function speak(text){
+  stopSpeech();
   const clean = text.replace(/[*_`#\[\]]/g,'').replace(/\s+/g,' ').trim();
-  const sentences = clean.match(/[^.!?]{1,120}[.!?]*/g) || [clean];
-  let i = 0;
   setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false;
 
+  function onDone(){
+    setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+    setTimeout(()=>{ clapEnabled=true; }, 2000);
+  }
+
+  // Intentar ElevenLabs primero
+  try {
+    const res = await fetch('/api/tts', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text: clean})
+    });
+    if(!res.ok) throw new Error('ElevenLabs no disponible');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.onended = ()=>{ URL.revokeObjectURL(url); currentAudio=null; onDone(); };
+    currentAudio.onerror = ()=>{ URL.revokeObjectURL(url); currentAudio=null; onDone(); };
+    currentAudio.play();
+    return;
+  } catch(e){}
+
+  // Fallback: Web Speech API
+  const sentences = clean.match(/[^.!?]{1,120}[.!?]*/g) || [clean];
+  let i = 0;
   const keepAlive = setInterval(()=>{
     if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); }
     else clearInterval(keepAlive);
   }, 10000);
-
-  // Cachear la voz una sola vez para toda la respuesta
-  function startSpeaking(){
+  onVoicesReady(()=>{
     const selectedVoice = getVoice();
     function next(){
-      if(i >= sentences.length){
-        clearInterval(keepAlive);
-        setOrb('idle'); setStatus('EN ESPERA'); stopWave();
-        setTimeout(()=>{ clapEnabled=true; }, 2000);
-        return;
-      }
+      if(i >= sentences.length){ clearInterval(keepAlive); onDone(); return; }
       const utt = new SpeechSynthesisUtterance(sentences[i++]);
       utt.lang='es-ES'; utt.rate=1.05; utt.pitch=0.85;
       if(selectedVoice) utt.voice=selectedVoice;
-      utt.onend = next;
-      utt.onerror = next;
+      utt.onend=next; utt.onerror=next;
       speechSynthesis.speak(utt);
     }
     next();
-  }
-  onVoicesReady(startSpeaking);
+  });
 }
 
 // ── SEND ──────────────────────────────────────────────────────────────────────
@@ -612,7 +632,7 @@ let micActive = false;
 let _micGotResult = false;
 
 function toggleMic(){
-  if(speechSynthesis.speaking){ speechSynthesis.cancel(); setOrb('idle'); setStatus('EN ESPERA'); stopWave(); return; }
+  if(currentAudio || speechSynthesis.speaking){ stopSpeech(); setOrb('idle'); setStatus('EN ESPERA'); stopWave(); return; }
   if(micActive){ stopMic(); return; }
   startMic();
 }
