@@ -1,12 +1,5 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "api/*.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/api/chat", "dest": "/api/chat.js" },
-    { "src": "/api/tts", "dest": "/api/tts.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
