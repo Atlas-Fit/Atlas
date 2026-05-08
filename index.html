@@ -789,10 +789,29 @@ document.addEventListener('keydown', e=>{
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 setOrb('idle');
+
+// Restaurar mensajes anteriores en pantalla al recargar
+if(history.length > 0){
+  const area = document.getElementById('msg-area');
+  history.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = m.role==='user' ? 'msg msg-user' : 'msg msg-atlas';
+    if(m.role==='assistant'){
+      div.innerHTML = `<div class="mlabel">ATLAS</div><span class="msg-content">${m.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</span>`;
+    } else {
+      div.textContent = m.content;
+    }
+    area.appendChild(div);
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
 if(apiKey){
   setTimeout(()=>{
     playBootSound();
-    addMsg('assistant', `Sistema ATLAS en línea. Bienvenido de nuevo, ${userName}. Tengo acceso a búsqueda web en tiempo real. ¿En qué puedo asistirle hoy?`);
+    if(history.length === 0){
+      addMsg('assistant', `Sistema ATLAS en línea. Bienvenido de nuevo, ${userName}. ¿En qué puedo asistirle hoy?`);
+    }
     speak(`Sistema ATLAS en línea. Bienvenido de nuevo, ${userName}.`);
   }, 900);
 }
