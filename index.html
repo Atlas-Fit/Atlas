@@ -508,6 +508,7 @@ async function send(text){
   document.getElementById('txt').value = '';
   addMsg('user', msg);
   isLoading = true;
+  clapEnabled = false;
   setOrb('think'); setStatus('PROCESANDO...','#ffaa00'); startWave('#ffaa00');
   document.getElementById('send').disabled = true;
   try {
@@ -562,6 +563,7 @@ function startMic(){
   recognition.interimResults = false;
   recognition.onstart = ()=>{
     micActive = true;
+    clapEnabled = false;
     document.getElementById('mic').classList.add('on');
     setOrb('listen'); setStatus('ESCUCHANDO...','#ff4444'); startWave('#ff4444');
   };
@@ -575,6 +577,7 @@ function startMic(){
     micActive = false;
     document.getElementById('mic').classList.remove('on');
     setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+    setTimeout(()=>{ clapEnabled = true; }, 3000);
   };
   recognition.onerror = e=>{
     micActive = false;
@@ -599,7 +602,7 @@ let clapEnabled = true;
       analyser.smoothingTimeConstant = 0.1;
       src.connect(analyser);
       const buf = new Uint8Array(analyser.frequencyBinCount);
-      const THRESHOLD = 200, MIN_GAP = 200, MAX_WIN = 1400;
+      const THRESHOLD = 215, MIN_GAP = 200, MAX_WIN = 1400;
       function detect(){
         analyser.getByteFrequencyData(buf);
         const peak = Math.max(...buf);
