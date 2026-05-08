@@ -337,15 +337,15 @@ function setOrb(state){
   }
 
   function draw(){
-    rotAngle += 0.007;
+    rotAngle += 0.012;
     const cosA = Math.cos(rotAngle);
 
     const wrap = document.getElementById('orb-wrap');
     const rect = wrap ? wrap.getBoundingClientRect() : null;
 
-    ctx.fillStyle='rgba(2,9,24,0.14)';
+    ctx.fillStyle='rgba(2,9,24,0.1)';
     ctx.fillRect(0,0,W,H);
-    ctx.font='9px Courier New';
+    ctx.font='10px Courier New';
     const [r,g,b] = hexToRgb(binaryColor);
 
     drops.forEach((y,i)=>{
@@ -354,12 +354,12 @@ function setOrb(state){
       const brightness = getSilInfo(x, y, rect, cosA);
 
       if(brightness !== null){
-        // Dentro: brillo 3D — centro muy brillante, bordes más tenues
-        const a = 0.35 + 0.7 * brightness;
-        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
+        // Dentro: brillo 3D intenso — centro blanco casi puro, bordes definidos
+        const a = 0.55 + 0.9 * brightness;
+        ctx.fillStyle=`rgba(${r},${g},${b},${Math.min(1,a)})`;
       } else {
-        // Fuera: visible pero tenue
-        ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.09+0.04})`;
+        // Fuera: bien visible
+        ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.18+0.08})`;
       }
       ctx.fillText(ch, x, y);
       drops[i] = y>H+10 ? 0 : y+11;
