@@ -208,7 +208,7 @@ body.state-idle #orb-wrap{filter:drop-shadow(0 0 14px rgba(26,111,255,.25))}
       <button id="send" onclick="send()">➤</button>
       <button id="mic" onclick="toggleMic()">🎙</button>
     </div>
-    <div id="hint">CLICK 🎙 PARA HABLAR · ENTER PARA ENVIAR</div>
+    <div id="hint">CLICK 🎙 PARA HABLAR · ENTER PARA ENVIAR · ESPACIO PARA INTERRUMPIR</div>
   </div>
 </div>
 
@@ -775,6 +775,16 @@ let clapEnabled = true;
     })
     .catch(()=>{});
 })();
+
+// ── INTERRUMPIR VOZ CON ESPACIO ───────────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space' && e.target.id!=='txt'){
+    e.preventDefault();
+    if(currentAudio || speechSynthesis.speaking){
+      stopSpeech(); setOrb('idle'); setStatus('EN ESPERA'); stopWave();
+    }
+  }
+});
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 setOrb('idle');
