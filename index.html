@@ -622,8 +622,7 @@ let clapEnabled = true;
             const msg = `${saludo} ${userName}. ATLAS en línea. Escuchando.`;
             playBootSound();
             setTimeout(()=>{
-              addMsg('assistant', msg);
-              // Hablar y al terminar activar mic automaticamente
+              // Solo hablar, NO agregar al historial para no confundir la API
               speechSynthesis.cancel();
               const utt = new SpeechSynthesisUtterance(msg.replace(/[,;]/g,' '));
               utt.lang='es-AR'; utt.rate=1.1; utt.pitch=0.55;
@@ -632,8 +631,8 @@ let clapEnabled = true;
               const v = voices.find(x=>maleNames.some(m=>x.name.toLowerCase().includes(m)))
                 || voices.find(x=>x.lang.startsWith('es')) || voices[0];
               if(v) utt.voice=v;
-              utt.onstart=()=>{ setOrb('speak'); setStatus('SALUDANDO...','#00ff88'); startWave('#00ff88'); };
-              utt.onend=()=>{ setOrb('idle'); stopWave(); setTimeout(()=>{ startMic(); clapEnabled=true; },400); };
+              setOrb('speak'); setStatus('SALUDANDO...','#00ff88'); startWave('#00ff88');
+              utt.onend=()=>{ setOrb('idle'); stopWave(); setTimeout(()=>{ clapEnabled=false; startMic(); },400); };
               speechSynthesis.speak(utt);
             }, 300);
           }
