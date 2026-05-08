@@ -481,10 +481,10 @@ function addMsg(role, content){
 // ── SPEAK ─────────────────────────────────────────────────────────────────────
 function speak(text){
   speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;:.!?]/g,' ').replace(/\s+/g,' ').trim().substring(0,600);
+  const clean = text.replace(/[*_`#\[\]]/g,'').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim().substring(0,600);
   const utt = new SpeechSynthesisUtterance(clean);
   utt.lang = 'es-AR';
-  utt.rate = 1.25;
+  utt.rate = 1.1;
   utt.pitch = 0.55; // voz grave masculina
   const voices = speechSynthesis.getVoices();
   // Buscar voz masculina argentina o española
