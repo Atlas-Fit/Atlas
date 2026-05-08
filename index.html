@@ -495,8 +495,8 @@ function speak(text){
     || voices.find(x=>x.lang.startsWith('es'))
     || voices[0];
   if(v) utt.voice = v;
-  utt.onstart = ()=>{ setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); };
-  utt.onend = ()=>{ setOrb('idle'); setStatus('EN ESPERA'); stopWave(); };
+  utt.onstart = ()=>{ setOrb('speak'); setStatus('TRANSMITIENDO...','#00ff88'); startWave('#00ff88'); clapEnabled=false; };
+  utt.onend = ()=>{ setOrb('idle'); setStatus('EN ESPERA'); stopWave(); setTimeout(()=>{ clapEnabled=true; },2000); };
   speechSynthesis.speak(utt);
 }
 
@@ -587,6 +587,7 @@ function startMic(){
 function stopMic(){ if(recognition) recognition.stop(); }
 
 // ── CLAP DETECTION ────────────────────────────────────────────────────────────
+let clapEnabled = true;
 (function(){
   let lastClap=0, clapCount=0, clapTimer=null;
   navigator.mediaDevices.getUserMedia({audio:true,video:false})
@@ -598,12 +599,12 @@ function stopMic(){ if(recognition) recognition.stop(); }
       analyser.smoothingTimeConstant = 0.1;
       src.connect(analyser);
       const buf = new Uint8Array(analyser.frequencyBinCount);
-      const THRESHOLD = 175, MIN_GAP = 180, MAX_WIN = 1400;
+      const THRESHOLD = 200, MIN_GAP = 200, MAX_WIN = 1400;
       function detect(){
         analyser.getByteFrequencyData(buf);
         const peak = Math.max(...buf);
         const now = Date.now();
-        if(peak > THRESHOLD && now - lastClap > MIN_GAP){
+        if(clapEnabled && peak > THRESHOLD && now - lastClap > MIN_GAP){
           lastClap = now;
           clapCount++;
           if(clapCount===1){
@@ -612,11 +613,13 @@ function stopMic(){ if(recognition) recognition.stop(); }
           } else if(clapCount>=2){
             clearTimeout(clapTimer);
             clapCount=0;
+            clapEnabled = false; // desactivar hasta que termine
             const h = new Date().getHours();
             const saludo = h<12 ? 'Buenos días' : h<19 ? 'Buenas tardes' : 'Buenas noches';
             const msg = `${saludo}, ${userName}. Sistema ATLAS en línea y listo para asistirle. ¿En qué puedo ayudarle?`;
             playBootSound();
             setTimeout(()=>{ addMsg('assistant', msg); speak(msg); }, 300);
+            setTimeout(()=>{ clapEnabled = true; }, 8000); // reactivar después de 8s
           }
         }
         requestAnimationFrame(detect);
