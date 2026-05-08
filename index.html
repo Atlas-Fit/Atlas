@@ -484,7 +484,7 @@ function speak(text){
   const clean = text.replace(/[*_`#\[\]]/g,'').substring(0,600);
   const utt = new SpeechSynthesisUtterance(clean);
   utt.lang = 'es-AR';
-  utt.rate = 0.88;
+  utt.rate = 1.15;
   utt.pitch = 0.55; // voz grave masculina
   const voices = speechSynthesis.getVoices();
   // Buscar voz masculina argentina o española
