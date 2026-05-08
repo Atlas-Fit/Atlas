@@ -322,19 +322,11 @@ function setOrb(state){
     return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
   }
 
-  function getSilInfo(px, py, rect, sinA){
-    if(!rect) return null;
+  function isInSil(px, py, rect){
+    if(!rect) return false;
     const lx = (px - rect.left) * (220/rect.width);
     const ly = (py - rect.top)  * (280/rect.height);
-    if(!oc2.isPointInPath(lx, ly)) return null;
-    // Posicion normalizada X dentro de la silueta (-1 izq, +1 der)
-    const centerX = rect.left + rect.width/2;
-    const normX = (px - centerX) / (rect.width/2);
-    // Oscurece los bordes siempre (efecto esfera)
-    const edgeDark = Math.cos(normX * Math.PI/2);
-    // Luz giratoria: un lado iluminado, el otro en sombra
-    const rotLight = 0.5 + 0.5 * Math.cos((normX - sinA) * Math.PI);
-    return Math.max(0.15, edgeDark * 0.5 + rotLight * 0.5);
+    return oc2.isPointInPath(lx, ly);
   }
 
   function draw(){
@@ -352,11 +344,15 @@ function setOrb(state){
     drops.forEach((y,i)=>{
       const x = i*CHAR_W;
       const ch = CHARS[Math.floor(Math.random()*CHARS.length)];
-      const brightness = getSilInfo(x, y, rect, sinA);
 
-      if(brightness !== null){
-        const a = 0.4 + 0.65 * brightness;
-        ctx.fillStyle=`rgba(${r},${g},${b},${Math.min(1,a)})`;
+      if(isInSil(x, y, rect)){
+        // Silueta: siempre muy brillante, con leve variacion 3D en los bordes
+        const centerX = rect.left + rect.width/2;
+        const normX = (x - centerX) / (rect.width/2);
+        const edge = Math.cos(normX * Math.PI/2);
+        const rotShade = 0.75 + 0.25 * Math.cos((normX - sinA) * Math.PI);
+        const a = Math.min(1, 0.75 + 0.25 * edge * rotShade);
+        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
       } else {
         ctx.fillStyle=`rgba(${r},${g},${b},${Math.random()*0.18+0.08})`;
       }
